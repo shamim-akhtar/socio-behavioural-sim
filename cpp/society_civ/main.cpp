@@ -68,6 +68,7 @@ int main() {
             myCiv.move_global_leaders();
             t++;
         }
+        myCiv.evaluate_population();
 
         // --- End of Run Reporting ---
         Individual run_best = myCiv.get_best_solution();
