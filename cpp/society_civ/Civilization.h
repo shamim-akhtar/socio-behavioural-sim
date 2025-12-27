@@ -162,16 +162,28 @@ public:
 
     // Helper: Dominance Check for Constraint Satisfaction
     bool dominates(const Individual& a, const Individual& b) {
+        // Guard: constraint vectors must match in size
+        if (a.constraint_violations.size() != b.constraint_violations.size()) {
+            // In production, treat as "cannot dominate" to avoid UB
+            return false;
+            // Alternatively (debug): assert(false && "Mismatched constraint vector sizes");
+        }
+
         bool no_worse = true;
         bool strictly_better = false;
+
         for (size_t i = 0; i < a.constraint_violations.size(); ++i) {
             if (a.constraint_violations[i] > b.constraint_violations[i]) {
-                no_worse = false; break;
+                no_worse = false;
+                break;
             }
-            if (a.constraint_violations[i] < b.constraint_violations[i]) strictly_better = true;
+            if (a.constraint_violations[i] < b.constraint_violations[i]) {
+                strictly_better = true;
+            }
         }
         return no_worse && strictly_better;
     }
+
 
     // 3.2 Rank Society [cite: 159-160]
     void rank_society(const std::vector<int>& members) {
