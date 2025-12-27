@@ -170,7 +170,7 @@ int problem4_2() {
     int m = 100; // Civilization Size 
     int n = 4;   // Variables: h, l, t, b [cite: 586]
 
-    const bool USE_RANDOM_SEED = false;
+    const bool USE_RANDOM_SEED = true;
 
     // Bounds defined in Eq (25) and text 
     // x1 (h): 0.1 <= x1 <= 2.0
@@ -308,7 +308,7 @@ int problem4_2() {
         // Print Raw Constraint Values (Positive = Satisfied, Negative = Violated in paper notation)
         // Note: WeldedBeamDesign helper returns values where >= 0 is satisfied.
         std::vector<double> raw_g = problem4_2.get_constraints_raw_values(ind);
-        std::cout << "Constraint Margins (>=0 is Feasible): \n[ ";
+        std::cout << "Constraint Margins (<=0 is Feasible): \n[ ";
         for (double g : raw_g) {
             std::cout << g << " ";
         }
