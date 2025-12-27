@@ -176,8 +176,9 @@ public:
         // Guard: constraint vectors must match in size
         if (a.constraint_violations.size() != b.constraint_violations.size()) {
             // In production, treat as "cannot dominate" to avoid UB
-            return false;
+            //return false;
             // Alternatively (debug): assert(false && "Mismatched constraint vector sizes");
+            throw std::runtime_error("dominates(): mismatched constraint vector sizes");
         }
 
         bool no_worse = true;
