@@ -29,5 +29,8 @@
     <ClInclude Include="Koziel_and_Michalewicz.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="WeldedBeamDesign.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
