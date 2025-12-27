@@ -1,36 +1,46 @@
-#include "Civilization.h" // Assuming your class is in this header
+#include "Civilization.h"
+#include "Koziel_and_Michalewicz.h" // Your problem definition
 
 int main() {
-    // --- 2-Variable Optimization Problem (Section 4.1) ---
-    // This allows us to visualize the EXACT search space on the 2D grid.
-
+    // 1. Setup Problem Parameters
     int m = 100; // Civilization Size
-    int n = 2;   // Reduced to 2 variables 
+    int n = 2;   // 2 Variables (Section 4.1)
 
-    // Bounds from Eq (6) in Section 4.1 
-    // x1: 13 to 100
-    // x2: 0 to 100
+    // Bounds from Eq (6) in Section 4.1
     std::vector<double> lower_bounds = { 13.0, 0.0 };
     std::vector<double> upper_bounds = { 100.0, 100.0 };
 
-    std::cout << "--- Socio-Behavioural Model: 2-Variable Test ---\n";
+    // 2. Create the Concrete Problem Logic
+    TwoVariableDesign problem4_1;
 
-    // 1. Create Civilization
-    Civilization myCiv(m, n, lower_bounds, upper_bounds);
+    // 3. Create Civilization with Functors
+    // We bind the problem's methods to the generic std::function arguments
+    std::cout << "--- Socio-Behavioural Model: Step 3 (Leader ID) ---\n";
 
-    // 2. Initialize Population (Random Scatter)
+    Civilization myCiv(
+        m, n, lower_bounds, upper_bounds,
+        // Objective Functor:
+        [&](const Individual& ind) { return problem4_1.objective(ind); },
+        // Constraint Functor:
+        [&](const Individual& ind) { return problem4_1.constraints(ind); }
+    );
+
+    // 4. Initialize
     myCiv.initialize();
 
-    // 3. Run Clustering Algorithm (Form Societies)
-    // The algorithm will group points based on Euclidean distance in 2D space.
+    // 5. Cluster (Form Societies)
     myCiv.cluster_population();
 
-    // 4. Visualize Output
-    // Since n=2, this map now shows the REAL distribution of all variables.
-    myCiv.print_ascii_map();
+    // 6. Identify Leaders (Evaluate & Rank)
+    myCiv.identify_leaders();
+    
+    // Step 4 ---
+    // Non-leaders learn from leaders and update positions
+    myCiv.move_society_members();
 
-    // Export for external tools (Excel/Python)
-    myCiv.export_to_csv("civilization_2var.csv");
+    // 7. Visualize Output
+    myCiv.print_ascii_map();
+    myCiv.export_to_csv("civilization_step4.csv");
 
     return 0;
 }

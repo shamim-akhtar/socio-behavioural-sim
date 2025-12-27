@@ -9,82 +9,72 @@
 #include <iostream>
 #include <random>
 #include <algorithm>
+#include <functional> // Required for std::function
 
 class Civilization {
+public:
+    // Define generic types for our problem functions
+    using ObjFunc = std::function<double(const Individual&)>;
+    using ConFunc = std::function<std::vector<double>(const Individual&)>;
+
 private:
     std::vector<Individual> population;
 
-    // --- NEW: Persistent State for Clustering ---
-    // Stores the INDICES of individuals that are hubs (Leaders)
-    std::vector<int> hubs;
-    // Stores the hub index each individual belongs to (0, 1, 2...)
-    std::vector<int> assignments;
+    // --- Clustering State ---
+    std::vector<int> hubs;        // Geometric centers (used for clustering)
+    std::vector<int> assignments; // Society ID for each individual
 
-    int m_pop_size; // m: Size of civilization [cite: 47]
-        int n_variables; // n: Number of design variables [cite: 47]
+    // --- NEW: Leadership State ---
+    // Stores the indices of Leaders for each society
+    // society_leaders[0] = list of leader indices for Society 0
+    std::vector<std::vector<int>> society_leaders;
 
-        // Lower and Upper bounds for each variable (l_j and u_j) 
-        std::vector<double> lower_bounds;
+    int m_pop_size;     // m: Size of civilization [cite: 47]
+    int n_variables;    // n: Number of design variables [cite: 47]
+
+    std::vector<double> lower_bounds;
     std::vector<double> upper_bounds;
-
-    // Random number generator
     std::mt19937 rng;
 
+    // --- GENERIC PROBLEM LOGIC ---
+    ObjFunc m_objective_fn;
+    ConFunc m_constraint_fn;
+
 public:
+    // Constructor updated to accept generic functors
     Civilization(int pop_size, int num_vars,
         const std::vector<double>& lb,
-        const std::vector<double>& ub)
+        const std::vector<double>& ub,
+        ObjFunc obj_func,
+        ConFunc con_func,
+        unsigned int seed = 10)
         : m_pop_size(pop_size), n_variables(num_vars),
-        lower_bounds(lb), upper_bounds(ub) {
+        lower_bounds(lb), upper_bounds(ub),
+        m_objective_fn(obj_func), m_constraint_fn(con_func) {
 
-        // Seed the random number generator
-        std::random_device rd;
-        rng.seed(rd());
+        //std::random_device rd;
+        //rng.seed(rd());
+        rng.seed(seed);
     }
 
     // Corresponds to Section 3.1: Initialization [cite: 109]
         void initialize() {
         population.clear();
         population.reserve(m_pop_size);
-
-        // R: Random number distribution between 0 and 1 
         std::uniform_real_distribution<double> R(0.0, 1.0);
 
         for (int i = 0; i < m_pop_size; ++i) {
             Individual ind(n_variables);
-
-            // Apply Eq. (3) for each variable j 
             for (int j = 0; j < n_variables; ++j) {
                 double r_val = R(rng);
-                // x_j = l_j + R * (u_j - l_j)
                 ind.variables[j] = lower_bounds[j] + r_val * (upper_bounds[j] - lower_bounds[j]);
             }
-
             population.push_back(ind);
         }
-
-        std::cout << "Civilization initialized with " << m_pop_size
-            << " individuals." << std::endl;
+        std::cout << "Civilization initialized with " << m_pop_size << " individuals." << std::endl;
     }
 
-    // Helper to view the state (for tutorial purposes)
-    void print_population_sample(int count = 5) {
-        for (int i = 0; i < std::min(count, m_pop_size); ++i) {
-            std::cout << "Individual " << i << ": [ ";
-            for (double val : population[i].variables) {
-                std::cout << val << " ";
-            }
-            std::cout << "]" << std::endl;
-        }
-    }
-
-    // Getter for the population
-    std::vector<Individual>& get_population() {
-        return population;
-    }
-
-    // Helper: Calculate Euclidean distance between two individuals
-    // Section 3.2: "The distance... is essentially the Euclidean norm" 
+    // --- Helper: Distance ---
     double calculate_distance(const Individual& a, const Individual& b) {
         double sum = 0.0;
         for (int i = 0; i < n_variables; ++i) {
@@ -94,185 +84,323 @@ public:
         return std::sqrt(sum);
     }
 
-    // Step 2: Cluster the m points into p mutually exclusive clusters
+    // --- Step 2: Clustering (Existing logic) ---
     void cluster_population() {
         if (population.empty()) return;
 
-        // Reset persistent state
         hubs.clear();
         assignments.assign(m_pop_size, -1);
 
-        // --- Step 1: Randomly choose one point as the first hub [cite: 121] ---
-            std::uniform_int_distribution<int> dist_idx(0, m_pop_size - 1);
-        int first_hub_idx = dist_idx(rng);
-        hubs.push_back(first_hub_idx);
+        // 1. Initial Hubs
+        std::uniform_int_distribution<int> dist_idx(0, m_pop_size - 1);
+        hubs.push_back(dist_idx(rng));
 
-        // --- Step 2: Find the point farthest from this hub, make it second hub [cite: 122] ---
-            int second_hub_idx = -1;
+        int second_hub = -1;
         double max_dist = -1.0;
-
         for (int i = 0; i < m_pop_size; ++i) {
-            double d = calculate_distance(population[i], population[first_hub_idx]);
-            if (d > max_dist) {
-                max_dist = d;
-                second_hub_idx = i;
-            }
+            double d = calculate_distance(population[i], population[hubs[0]]);
+            if (d > max_dist) { max_dist = d; second_hub = i; }
         }
-        hubs.push_back(second_hub_idx);
+        hubs.push_back(second_hub);
 
-        // --- Step 3: Assign points to closest hub [cite: 123-124] ---
-        // We do this initially for the first 2 hubs
+        // Initial assignment
         for (int i = 0; i < m_pop_size; ++i) {
             double d1 = calculate_distance(population[i], population[hubs[0]]);
             double d2 = calculate_distance(population[i], population[hubs[1]]);
-            if (d1 <= d2) assignments[i] = 0; // Belongs to hub 0
-            else assignments[i] = 1;          // Belongs to hub 1
+            assignments[i] = (d1 <= d2) ? 0 : 1;
         }
 
-        // --- The Clustering Loop (Steps 4 - 7) ---
+        // Clustering Loop
         while (true) {
-            // Step 4: Compute average distance between hubs [cite: 125]
-                double total_hub_dist = 0.0;
-            int pair_count = 0;
+            double total_dist = 0.0;
+            int pairs = 0;
             for (size_t i = 0; i < hubs.size(); ++i) {
                 for (size_t j = i + 1; j < hubs.size(); ++j) {
-                    total_hub_dist += calculate_distance(population[hubs[i]], population[hubs[j]]);
-                    pair_count++;
+                    total_dist += calculate_distance(population[hubs[i]], population[hubs[j]]);
+                    pairs++;
                 }
             }
+            double D = (pairs > 0) ? (total_dist / pairs) / 2.0 : 0.0;
 
-            double avg_hub_dist = (pair_count > 0) ? (total_hub_dist / pair_count) : 0.0;
-            double D = avg_hub_dist / 2.0; // The threshold D [cite: 126]
+            int farthest_idx = -1;
+            double max_d = -1.0;
+            for (int i = 0; i < m_pop_size; ++i) {
+                int hub_idx = hubs[assignments[i]];
+                double d = calculate_distance(population[i], population[hub_idx]);
+                if (d > max_d) { max_d = d; farthest_idx = i; }
+            }
 
-                // Check distance of every point to its assigned hub
-                int farthest_point_idx = -1;
-            double max_dist_to_hub = -1.0;
+            if (max_d <= D) break;
+
+            hubs.push_back(farthest_idx);
+            int new_hub_id = hubs.size() - 1;
 
             for (int i = 0; i < m_pop_size; ++i) {
-                int hub_idx = hubs[assignments[i]]; // Get the actual individual index of the hub
-                double d = calculate_distance(population[i], population[hub_idx]);
-
-                // Track the point farthest from its hub
-                if (d > max_dist_to_hub) {
-                    max_dist_to_hub = d;
-                    farthest_point_idx = i;
-                }
+                int curr = hubs[assignments[i]];
+                double d_curr = calculate_distance(population[i], population[curr]);
+                double d_new = calculate_distance(population[i], population[farthest_idx]);
+                if (d_new < d_curr) assignments[i] = new_hub_id;
             }
-
-            // Termination Condition: If no distance is greater than D, stop [cite: 127]
-                if (max_dist_to_hub <= D) {
-                    break;
-                }
-
-            // Step 5: Make the point farthest from any hub a new hub [cite: 129]
-                hubs.push_back(farthest_point_idx);
-            int new_hub_internal_idx = hubs.size() - 1;
-
-            // Step 6: Re-assign points if they are closer to the new hub [cite: 130-131]
-                for (int i = 0; i < m_pop_size; ++i) {
-                    int current_hub_idx = hubs[assignments[i]];
-                    double dist_current = calculate_distance(population[i], population[current_hub_idx]);
-
-                    double dist_new = calculate_distance(population[i], population[farthest_point_idx]);
-
-                    if (dist_new < dist_current) {
-                        assignments[i] = new_hub_internal_idx;
-                    }
-                }
-
-            // Step 7: Return to Step 4 (Loop continues) [cite: 132]
         }
-
-        std::cout << "Clustering complete. Created " << hubs.size() << " societies." << std::endl;
-
+        std::cout << "--> Clustering complete. Societies formed: " << hubs.size() << "\n";
         organize_societies();
     }
 
-    // Helper to visualize details (Now uses member variables directly)
+    // --- NEW: Step 3 - Leader Identification ---
+
+    // 3.1 Evaluate using Generic Functors
+    void evaluate_population() {
+        for (auto& ind : population) {
+            ind.objective_value = m_objective_fn(ind);
+            ind.constraint_violations = m_constraint_fn(ind);
+        }
+    }
+
+    // Helper: Dominance Check for Constraint Satisfaction
+    bool dominates(const Individual& a, const Individual& b) {
+        bool no_worse = true;
+        bool strictly_better = false;
+        for (size_t i = 0; i < a.constraint_violations.size(); ++i) {
+            if (a.constraint_violations[i] > b.constraint_violations[i]) {
+                no_worse = false; break;
+            }
+            if (a.constraint_violations[i] < b.constraint_violations[i]) strictly_better = true;
+        }
+        return no_worse && strictly_better;
+    }
+
+    // 3.2 Rank Society [cite: 159-160]
+    void rank_society(const std::vector<int>& members) {
+        std::vector<int> current_pool = members;
+        int current_rank = 1;
+        while (!current_pool.empty()) {
+            std::vector<int> next_pool;
+            for (int i : current_pool) {
+                bool is_dominated = false;
+                for (int j : current_pool) {
+                    if (i == j) continue;
+                    if (dominates(population[j], population[i])) {
+                        is_dominated = true; break;
+                    }
+                }
+                if (!is_dominated) population[i].rank = current_rank;
+                else next_pool.push_back(i);
+            }
+            current_pool = next_pool;
+            current_rank++;
+        }
+    }
+
+    // 3.3 Identify Leaders [cite: 161-169]
+    void identify_leaders() {
+        evaluate_population();
+
+        int num_societies = hubs.size();
+        std::vector<std::vector<int>> societies(num_societies);
+        for (int i = 0; i < m_pop_size; ++i)
+            if (assignments[i] >= 0) societies[assignments[i]].push_back(i);
+
+        society_leaders.clear();
+        society_leaders.resize(num_societies);
+
+        for (int s = 0; s < num_societies; ++s) {
+            std::vector<int>& members = societies[s];
+            if (members.empty()) continue;
+
+            rank_society(members);
+
+            std::vector<int> rank1;
+            double sum_obj = 0.0;
+            for (int idx : members) {
+                sum_obj += population[idx].objective_value;
+                if (population[idx].rank == 1) rank1.push_back(idx);
+            }
+
+            double avg_obj = (members.size() > 0) ? sum_obj / members.size() : 0.0;
+            bool filter = rank1.size() > (members.size() * 0.5);
+
+            if (!filter) {
+                society_leaders[s] = rank1;
+            }
+            else {
+                for (int idx : rank1) {
+                    if (population[idx].objective_value <= avg_obj)
+                        society_leaders[s].push_back(idx);
+                }
+                if (society_leaders[s].empty() && !rank1.empty())
+                    society_leaders[s].push_back(rank1[0]);
+            }
+        }
+        std::cout << "--> Leaders Identified via Generic Functors.\n";
+    }
+
+    // Step 4 Helpers & Logic ---
+
+    // Helper: Check if an individual is currently a leader
+    bool is_leader(int index) {
+        if (assignments[index] == -1) return false;
+        int society_idx = assignments[index];
+        if (society_idx >= (int)society_leaders.size()) return false;
+
+        for (int leader_idx : society_leaders[society_idx]) {
+            if (leader_idx == index) return true;
+        }
+        return false;
+    }
+
+    // Section 3.5: Information Acquisition Operator [cite: 170-178]
+    // Implements the stochastic movement logic
+    double acquire_information(double val_ind, double val_leader, double lb, double ub) {
+        std::uniform_real_distribution<double> dist(0.0, 1.0);
+        double r = dist(rng);
+
+        double min_v = std::min(val_ind, val_leader);
+        double max_v = std::max(val_ind, val_leader);
+
+        // Define the 3 regions from Figure 2 [cite: 187]
+        if (r < 0.25) {
+            // 25% prob: Move between Lower Bound and min(ind, leader) [cite: 173]
+            if (min_v <= lb) return lb;
+            std::uniform_real_distribution<double> range(lb, min_v);
+            return range(rng);
+        }
+        else if (r < 0.75) {
+            // 50% prob: Move between Individual and Leader [cite: 172]
+            if (max_v <= min_v) return min_v;
+            std::uniform_real_distribution<double> range(min_v, max_v);
+            return range(rng);
+        }
+        else {
+            // 25% prob: Move between max(ind, leader) and Upper Bound [cite: 174]
+            if (ub <= max_v) return ub;
+            std::uniform_real_distribution<double> range(max_v, ub);
+            return range(rng);
+        }
+    }
+
+    // Step 4: Intra-Society Interaction [cite: 97-98]
+    void move_society_members() {
+        for (int i = 0; i < m_pop_size; ++i) {
+            // Leaders do not move in this step [cite: 97]
+            if (is_leader(i)) continue;
+
+            int society_id = assignments[i];
+            if (society_id == -1 || society_leaders[society_id].empty()) continue;
+
+            // Find nearest leader in the same society [cite: 54]
+            int nearest_leader = -1;
+            double min_dist = std::numeric_limits<double>::max();
+
+            for (int leader_idx : society_leaders[society_id]) {
+                double d = calculate_distance(population[i], population[leader_idx]);
+                if (d < min_dist) {
+                    min_dist = d;
+                    nearest_leader = leader_idx;
+                }
+            }
+
+            // Apply Information Acquisition Operator for each variable
+            if (nearest_leader != -1) {
+                for (int j = 0; j < n_variables; ++j) {
+                    population[i].variables[j] = acquire_information(
+                        population[i].variables[j],
+                        population[nearest_leader].variables[j],
+                        lower_bounds[j],
+                        upper_bounds[j]
+                    );
+                }
+            }
+        }
+        std::cout << "--> Step 4: Society members moved towards leaders.\n";
+    }
+
+    // --- Helpers (PRESERVED) ---
+
     void organize_societies() {
         if (assignments.empty()) return;
-
-        // We can store a vector<vector<int>> representing clusters
         std::vector<std::vector<int>> clusters(hubs.size());
         for (int i = 0; i < m_pop_size; ++i) {
             if (assignments[i] >= 0 && assignments[i] < (int)hubs.size())
                 clusters[assignments[i]].push_back(i);
         }
-
-        // Print details for the tutorial
         for (size_t i = 0; i < clusters.size(); ++i) {
             std::cout << "Society " << i << " has " << clusters[i].size() << " individuals." << std::endl;
         }
     }
 
-    // Export to CSV for external plotting
     void export_to_csv(const std::string& filename) {
         if (assignments.empty()) {
-            std::cout << "Error: No clusters to export. Run cluster_population() first." << std::endl;
+            std::cout << "Error: No clusters to export.\n";
             return;
         }
-
         std::ofstream file(filename);
-        file << "x1,x2,cluster_id\n"; // Header
+        // Added objective_score column header
+        file << "x1,x2,cluster_id,is_leader,objective_score\n";
 
         for (int i = 0; i < m_pop_size; ++i) {
-            // We only save the first 2 variables for 2D plotting
+            // Check leadership status
+            int is_leader = 0;
+            if (assignments[i] >= 0 && assignments[i] < (int)society_leaders.size()) {
+                for (int leader_idx : society_leaders[assignments[i]]) {
+                    if (leader_idx == i) is_leader = 1;
+                }
+            }
+
             file << population[i].variables[0] << ","
                 << population[i].variables[1] << ","
-                << assignments[i] << "\n";
+                << assignments[i] << ","
+                << is_leader << ","
+                << population[i].objective_value << "\n"; // Added objective value
         }
         file.close();
         std::cout << "Data exported to " << filename << std::endl;
     }
 
-    // VISUALIZATION: ASCII Map
-    // Maps the first two variables (x1, x2) to a 20x20 grid
     void print_ascii_map() {
-        if (assignments.empty() || hubs.empty()) {
-            std::cout << "No clusters to display. Run cluster_population() first.\n";
+        if (assignments.empty()) {
+            std::cout << "No clusters to display.\n";
             return;
         }
 
         const int GRID = 100;
         char grid[GRID][GRID];
-
-        // Fill with empty space
-        for (int i = 0; i < GRID; ++i)
-            for (int j = 0; j < GRID; ++j)
-                grid[i][j] = '.';
+        for (int i = 0; i < GRID; ++i) for (int j = 0; j < GRID; ++j) grid[i][j] = '.';
 
         for (int i = 0; i < m_pop_size; ++i) {
-            // Normalize x1 and x2 to 0-1 range relative to bounds
             double x = (population[i].variables[0] - lower_bounds[0]) / (upper_bounds[0] - lower_bounds[0]);
             double y = (population[i].variables[1] - lower_bounds[1]) / (upper_bounds[1] - lower_bounds[1]);
-
-            // Convert to grid coordinates
             int c = (int)(x * (GRID - 1));
             int r = (int)(y * (GRID - 1));
-
-            // Flip row index so '0' is at the bottom (Cartesian y-axis)
             r = (GRID - 1) - r;
 
             if (r >= 0 && r < GRID && c >= 0 && c < GRID) {
-                // Check if this individual is a Leader (Hub)
-                bool is_hub = false;
-                for (int h : hubs) if (h == i) is_hub = true;
+                // Check if 'i' is a Performance Leader
+                bool is_leader = false;
+                if (assignments[i] >= 0 && assignments[i] < (int)society_leaders.size()) {
+                    for (int l : society_leaders[assignments[i]]) if (l == i) is_leader = true;
+                }
 
-                if (is_hub) grid[r][c] = 'X'; // Mark Leader
-                else grid[r][c] = '0' + (assignments[i] % 10); // Mark Society ID
+                if (is_leader) grid[r][c] = 'L'; // Show Leader
+                else grid[r][c] = '0' + (assignments[i] % 10);
             }
         }
-
-        std::cout << "\n   [Map of Civilization (x1 vs x2)]\n";
-        std::cout << "   X = Leader, Number = Society ID\n";
+        std::cout << "\n   [Map: L = Leader, # = Society ID]\n";
         std::cout << "   ------------------------------\n";
         for (int i = 0; i < GRID; ++i) {
             std::cout << "   | ";
-            for (int j = 0; j < GRID; ++j) {
-                std::cout << grid[i][j] << " ";
-            }
+            for (int j = 0; j < GRID; ++j) std::cout << grid[i][j] << " ";
             std::cout << "|\n";
         }
         std::cout << "   ------------------------------\n";
     }
+
+    void print_population_sample(int count = 5) {
+        for (int i = 0; i < std::min(count, m_pop_size); ++i) {
+            std::cout << "Individual " << i << ": [ ";
+            for (double val : population[i].variables) std::cout << val << " ";
+            std::cout << "]" << std::endl;
+        }
+    }
+
+    std::vector<Individual>& get_population() { return population; }
 };
