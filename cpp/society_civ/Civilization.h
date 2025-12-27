@@ -24,10 +24,14 @@ private:
     std::vector<int> hubs;        // Geometric centers (used for clustering)
     std::vector<int> assignments; // Society ID for each individual
 
-    // --- NEW: Leadership State ---
+    // Leadership State
     // Stores the indices of Leaders for each society
     // society_leaders[0] = list of leader indices for Society 0
     std::vector<std::vector<int>> society_leaders;
+    
+    // Global State (Step 5 & 6)
+    std::vector<int> global_society; // Indices of all local leaders collated together
+    std::vector<int> super_leaders;  // Indices of the "Best of the Best"
 
     int m_pop_size;     // m: Size of civilization [cite: 47]
     int n_variables;    // n: Number of design variables [cite: 47]
@@ -146,7 +150,7 @@ public:
         organize_societies();
     }
 
-    // --- NEW: Step 3 - Leader Identification ---
+    // Step 3 - Leader Identification ---
 
     // 3.1 Evaluate using Generic Functors
     void evaluate_population() {
@@ -313,49 +317,60 @@ public:
         }
         std::cout << "--> Step 4: Society members moved towards leaders.\n";
     }
+    //Step 5 & 6 Helpers ---
 
-    // --- Helpers (PRESERVED) ---
-
-    void organize_societies() {
-        if (assignments.empty()) return;
-        std::vector<std::vector<int>> clusters(hubs.size());
-        for (int i = 0; i < m_pop_size; ++i) {
-            if (assignments[i] >= 0 && assignments[i] < (int)hubs.size())
-                clusters[assignments[i]].push_back(i);
+    // Step 5: Collate leaders to form global society [cite: 56, 100]
+    void form_global_society() {
+        global_society.clear();
+        for (const auto& leaders : society_leaders) {
+            global_society.insert(global_society.end(), leaders.begin(), leaders.end());
         }
-        for (size_t i = 0; i < clusters.size(); ++i) {
-            std::cout << "Society " << i << " has " << clusters[i].size() << " individuals." << std::endl;
-        }
+        std::cout << "--> Step 5: Global Society formed with " << global_society.size() << " members.\n";
     }
 
-    void export_to_csv(const std::string& filename) {
-        if (assignments.empty()) {
-            std::cout << "Error: No clusters to export.\n";
-            return;
-        }
-        std::ofstream file(filename);
-        // Added objective_score column header
-        file << "x1,x2,cluster_id,is_leader,objective_score\n";
+    // Step 6: Identify Super Leaders [cite: 57-59, 102]
+    // "The global leaders' society... behaves like any other society."
+    void identify_super_leaders() {
+        if (global_society.empty()) return;
 
-        for (int i = 0; i < m_pop_size; ++i) {
-            // Check leadership status
-            int is_leader = 0;
-            if (assignments[i] >= 0 && assignments[i] < (int)society_leaders.size()) {
-                for (int leader_idx : society_leaders[assignments[i]]) {
-                    if (leader_idx == i) is_leader = 1;
-                }
+        super_leaders.clear();
+
+        // 1. Rank the Global Society (Reuse existing ranking logic)
+        // Note: This temporarily overwrites 'rank' for these individuals, 
+        // which is fine as local movement (Step 4) is already done.
+        rank_society(global_society);
+
+        // 2. Filter for Super Leaders (Same logic as Step 3)
+        std::vector<int> rank1;
+        double sum_obj = 0.0;
+
+        for (int idx : global_society) {
+            sum_obj += population[idx].objective_value;
+            if (population[idx].rank == 1) rank1.push_back(idx);
+        }
+
+        double avg_obj = (global_society.size() > 0) ? sum_obj / global_society.size() : 0.0;
+
+        // Selection Logic
+        bool filter = rank1.size() > (global_society.size() * 0.5);
+
+        if (!filter) {
+            super_leaders = rank1;
+        }
+        else {
+            for (int idx : rank1) {
+                if (population[idx].objective_value <= avg_obj)
+                    super_leaders.push_back(idx);
             }
-
-            file << population[i].variables[0] << ","
-                << population[i].variables[1] << ","
-                << assignments[i] << ","
-                << is_leader << ","
-                << population[i].objective_value << "\n"; // Added objective value
+            // Fallback
+            if (super_leaders.empty() && !rank1.empty())
+                super_leaders.push_back(rank1[0]);
         }
-        file.close();
-        std::cout << "Data exported to " << filename << std::endl;
+
+        std::cout << "--> Step 6: Identified " << super_leaders.size() << " Super Leaders.\n";
     }
 
+    // --- AMENDED: Visualization to show 'S' for Super Leaders ---
     void print_ascii_map() {
         if (assignments.empty()) {
             std::cout << "No clusters to display.\n";
@@ -374,17 +389,21 @@ public:
             r = (GRID - 1) - r;
 
             if (r >= 0 && r < GRID && c >= 0 && c < GRID) {
-                // Check if 'i' is a Performance Leader
-                bool is_leader = false;
-                if (assignments[i] >= 0 && assignments[i] < (int)society_leaders.size()) {
-                    for (int l : society_leaders[assignments[i]]) if (l == i) is_leader = true;
+                // Check status
+                bool is_super = false;
+                for (int s : super_leaders) if (s == i) is_super = true;
+
+                bool is_local = false;
+                if (!is_super && assignments[i] >= 0) { // Check local leader only if not super
+                    for (int l : society_leaders[assignments[i]]) if (l == i) is_local = true;
                 }
 
-                if (is_leader) grid[r][c] = 'L'; // Show Leader
+                if (is_super) grid[r][c] = 'S';      // Super Leader
+                else if (is_local) grid[r][c] = 'L'; // Local Leader
                 else grid[r][c] = '0' + (assignments[i] % 10);
             }
         }
-        std::cout << "\n   [Map: L = Leader, # = Society ID]\n";
+        std::cout << "\n   [Map: S = Super Leader, L = Local Leader, # = Society ID]\n";
         std::cout << "   ------------------------------\n";
         for (int i = 0; i < GRID; ++i) {
             std::cout << "   | ";
@@ -392,6 +411,50 @@ public:
             std::cout << "|\n";
         }
         std::cout << "   ------------------------------\n";
+    }
+
+    // --- AMENDED: Export to CSV to include Super Leader flag ---
+    void export_to_csv(const std::string& filename) {
+        if (assignments.empty()) return;
+
+        std::ofstream file(filename);
+        // Added is_super_leader column
+        file << "x1,x2,cluster_id,is_leader,is_super_leader,objective_score\n";
+
+        for (int i = 0; i < m_pop_size; ++i) {
+            int is_leader = 0;
+            int is_super = 0;
+
+            // Check Local Leader
+            if (assignments[i] >= 0 && assignments[i] < (int)society_leaders.size()) {
+                for (int l : society_leaders[assignments[i]]) if (l == i) is_leader = 1;
+            }
+            // Check Super Leader
+            for (int s : super_leaders) if (s == i) is_super = 1;
+
+            file << population[i].variables[0] << ","
+                << population[i].variables[1] << ","
+                << assignments[i] << ","
+                << is_leader << ","
+                << is_super << ","
+                << population[i].objective_value << "\n";
+        }
+        file.close();
+        std::cout << "Data exported to " << filename << std::endl;
+    }
+
+    // --- Helpers (PRESERVED) ---
+
+    void organize_societies() {
+        if (assignments.empty()) return;
+        std::vector<std::vector<int>> clusters(hubs.size());
+        for (int i = 0; i < m_pop_size; ++i) {
+            if (assignments[i] >= 0 && assignments[i] < (int)hubs.size())
+                clusters[assignments[i]].push_back(i);
+        }
+        for (size_t i = 0; i < clusters.size(); ++i) {
+            std::cout << "Society " << i << " has " << clusters[i].size() << " individuals." << std::endl;
+        }
     }
 
     void print_population_sample(int count = 5) {

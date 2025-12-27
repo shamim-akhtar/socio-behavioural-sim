@@ -37,10 +37,16 @@ int main() {
     // Step 4 ---
     // Non-leaders learn from leaders and update positions
     myCiv.move_society_members();
+    
+    // Step 5 & 6 ---
+    // Form Global Society and Find Super Leaders
+    myCiv.form_global_society();
+    myCiv.identify_super_leaders();
 
     // 7. Visualize Output
+    // You should now see 'S' characters for the best leaders.
     myCiv.print_ascii_map();
-    myCiv.export_to_csv("civilization_step4.csv");
+    myCiv.export_to_csv("civilization_step6.csv");
 
     return 0;
 }
