@@ -5,6 +5,7 @@
 #include <numeric>   // For accumulate
 #include <vector>
 #include <random>
+#include <fstream>
 
 int main() {
     // 1. Setup Problem Parameters
@@ -31,7 +32,15 @@ int main() {
     int best_run_evaluations = 0;
     bool best_found = false;
 
-    std::cout << "Starting Simulation (" << NUM_RUNS << " Runs, " << MAX_T << " Iterations each)...\n\n";
+    // ============================================================
+    // Initialize Data Logger
+    // ============================================================
+    std::ofstream logFile("simulation_data.csv");
+    // Write CSV Header
+    logFile << "Run,Time,AgentID,x1,x2,Objective,ClusterID,IsLocalLeader,IsSuperLeader\n";
+
+    std::cout << "Starting Simulation (" << NUM_RUNS << " Runs, " << MAX_T << " Iterations each)...\n";
+    std::cout << "Logging data to 'simulation_data.csv'...\n\n";
 
     // --- RUN LOOP ---
     for (int run = 1; run <= NUM_RUNS; ++run) {
@@ -66,6 +75,10 @@ int main() {
             myCiv.form_global_society();
             myCiv.identify_super_leaders();
             myCiv.move_global_leaders();
+
+            // Log Data for this Time Step
+            myCiv.log_state(logFile, run, t);
+
             t++;
         }
         myCiv.evaluate_population();

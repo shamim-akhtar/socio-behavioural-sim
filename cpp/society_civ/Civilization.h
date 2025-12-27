@@ -672,4 +672,38 @@ public:
         return population[best_idx];
     }
 
+    // Data Logging for Animation/Analysis ---
+    // Appends the current state of the entire population to an open CSV stream
+    void log_state(std::ofstream& file, int run, int time_step) {
+        if (assignments.empty()) return;
+
+        for (int i = 0; i < m_pop_size; ++i) {
+            // Determine roles
+            int is_local_leader = 0;
+            int is_super_leader = 0;
+
+            // Check Local Leader status
+            if (assignments[i] >= 0 && assignments[i] < (int)society_leaders.size()) {
+                for (int l : society_leaders[assignments[i]]) {
+                    if (l == i) { is_local_leader = 1; break; }
+                }
+            }
+
+            // Check Super Leader status
+            for (int s : super_leaders) {
+                if (s == i) { is_super_leader = 1; break; }
+            }
+
+            // Write Row: Run, Time, ID, x1, x2, Obj, Cluster, IsLocal, IsSuper
+            file << run << ","
+                << time_step << ","
+                << i << "," // Individual ID (to track specific agents over time)
+                << population[i].variables[0] << ","
+                << population[i].variables[1] << ","
+                << population[i].objective_value << ","
+                << assignments[i] << ","
+                << is_local_leader << ","
+                << is_super_leader << "\n";
+        }
+    }
 };
