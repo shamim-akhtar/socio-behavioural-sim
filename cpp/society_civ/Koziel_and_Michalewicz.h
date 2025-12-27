@@ -36,4 +36,23 @@ struct TwoVariableDesign {
 
         return violations;
     }
+
+    // NEW: Helper to get raw g(x) values for reporting
+    std::vector<double> get_raw_values(const Individual& ind) const {
+        double x1 = ind.variables[0];
+        double x2 = ind.variables[1];
+        std::vector<double> raw_values;
+
+        // Constraint 1: (x1 - 5)^2 + (x2 - 5)^2 - 100 >= 0
+        double g1 = std::pow(x1 - 5.0, 2) + std::pow(x2 - 5.0, 2) - 100.0;
+
+        // Constraint 2: -(x1 - 6)^2 - (x2 - 5)^2 + 82.81 >= 0
+        double g2 = -std::pow(x1 - 6.0, 2) - std::pow(x2 - 5.0, 2) + 82.81;
+
+        // Return raw g(x) regardless of sign
+        raw_values.push_back(g1);
+        raw_values.push_back(g2);
+
+        return raw_values;
+    }
 };

@@ -115,10 +115,11 @@ int main() {
 
         std::cout << "Objective: " << global_best_ever.objective_value << "\n";
 
-        // NEW: Print Constraint Violations
-        std::cout << "Constraints: [ ";
-        for (double c : global_best_ever.constraint_violations) {
-            std::cout << c << " ";
+        // CHANGED: Print Raw Constraint Values instead of Violations
+        std::vector<double> raw_g = problem4_1.get_raw_values(global_best_ever);
+        std::cout << "Constraint Values (g(x)): [ ";
+        for (double g : raw_g) {
+            std::cout << std::fixed << std::setprecision(5) << g << " ";
         }
         std::cout << "]\n";
     }
