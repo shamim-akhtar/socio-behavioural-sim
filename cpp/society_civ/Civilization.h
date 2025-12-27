@@ -413,6 +413,52 @@ public:
         std::cout << "   ------------------------------\n";
     }
 
+    // --- NEW: Step 7 & 8 Helpers ---
+
+    // Helper: Check if an individual is a Super Leader
+    bool is_super_leader(int index) {
+        for (int s : super_leaders) {
+            if (s == index) return true;
+        }
+        return false;
+    }
+
+    // Step 7: Inter-Society Interaction (Global Leaders move towards Super Leaders) [cite: 104]
+    // Step 8: Super leaders do not change their position [cite: 105]
+    void move_global_leaders() {
+        if (super_leaders.empty()) return;
+
+        for (int leader_idx : global_society) {
+            // Step 8: Super leaders do not change position
+            if (is_super_leader(leader_idx)) continue;
+
+            // Find closest Super Leader
+            int nearest_super = -1;
+            double min_dist = std::numeric_limits<double>::max();
+
+            for (int super_idx : super_leaders) {
+                double d = calculate_distance(population[leader_idx], population[super_idx]);
+                if (d < min_dist) {
+                    min_dist = d;
+                    nearest_super = super_idx;
+                }
+            }
+
+            // Apply Information Acquisition Operator
+            if (nearest_super != -1) {
+                for (int j = 0; j < n_variables; ++j) {
+                    population[leader_idx].variables[j] = acquire_information(
+                        population[leader_idx].variables[j],
+                        population[nearest_super].variables[j],
+                        lower_bounds[j],
+                        upper_bounds[j]
+                    );
+                }
+            }
+        }
+        std::cout << "--> Step 7: Global Leaders moved towards Super Leaders.\n";
+    }
+
     // --- AMENDED: Export to CSV to include Super Leader flag ---
     void export_to_csv(const std::string& filename) {
         if (assignments.empty()) return;
