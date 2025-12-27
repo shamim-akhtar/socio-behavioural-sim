@@ -14,7 +14,7 @@ int main() {
     int m = 100; // Civilization Size
     int n = 2;   // Variables
 
-    const bool USE_RANDOM_SEED = true;
+    const bool USE_RANDOM_SEED = false;
 
     std::vector<double> lower_bounds = { 13.0, 0.0 };
     std::vector<double> upper_bounds = { 100.0, 100.0 };

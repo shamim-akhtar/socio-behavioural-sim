@@ -527,6 +527,7 @@ public:
 
     // --- Helper: Get Best Solution (Post-Simulation) ---
     Individual get_best_solution() {
+        constexpr double FEAS_EPS = 1e-12;  // adjust if you later adopt explicit tolerances
         int best_idx = -1;
 
         // 1. Try to find the best FEASIBLE solution
@@ -535,7 +536,7 @@ public:
             double total_violation = 0.0;
             for (double v : population[i].constraint_violations) total_violation += v;
 
-            if (total_violation == 0.0) {
+            if (total_violation <= FEAS_EPS) {
                 if (best_idx == -1) {
                     best_idx = i;
                 }
@@ -558,16 +559,31 @@ public:
 
         // 2. If NO feasible solution exists, find the one with lowest violations
         if (best_idx == -1) {
-            double min_violation = std::numeric_limits<double>::max();
-            for (int i = 0; i < m_pop_size; ++i) {
-                double total_violation = 0.0;
-                for (double v : population[i].constraint_violations) total_violation += v;
+            std::vector<int> rank1;
+            rank1.reserve(m_pop_size);
 
-                if (total_violation < min_violation) {
-                    min_violation = total_violation;
-                    best_idx = i;
+            for (int i = 0; i < m_pop_size; ++i) {
+                bool dominated = false;
+                for (int j = 0; j < m_pop_size; ++j) {
+                    if (i == j) continue;
+                    if (dominates(population[j], population[i])) { // j dominates i in constraint space
+                        dominated = true;
+                        break;
+                    }
+                }
+                if (!dominated) rank1.push_back(i);
+            }
+
+            // Select best objective among rank-1 infeasible solutions
+            best_idx = rank1[0];
+            for (int idx : rank1) {
+                if (population[idx].objective_value < population[best_idx].objective_value) {
+                    best_idx = idx;
                 }
             }
+
+            // Optional: tie-breaker if objectives equal (rare):
+            // choose lower sum of violations among equal objective
         }
 
         return population[best_idx];
