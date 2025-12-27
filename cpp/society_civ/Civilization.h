@@ -525,67 +525,139 @@ public:
 
     std::vector<Individual>& get_population() { return population; }
 
-    // --- Helper: Get Best Solution (Post-Simulation) ---
+    //// --- Helper: Get Best Solution (Post-Simulation) ---
+    //Individual get_best_solution() {
+    //    constexpr double FEAS_EPS = 1e-12;  // adjust if you later adopt explicit tolerances
+    //    int best_idx = -1;
+
+    //    // 1. Try to find the best FEASIBLE solution
+    //    // (Constraint Violation Sum == 0) and lowest Objective Value
+    //    for (int i = 0; i < m_pop_size; ++i) {
+    //        double total_violation = 0.0;
+    //        for (double v : population[i].constraint_violations) total_violation += v;
+
+    //        if (total_violation <= FEAS_EPS) {
+    //            if (best_idx == -1) {
+    //                best_idx = i;
+    //            }
+    //            else {
+    //                // Check if current feasible is better than best feasible found so far
+    //                double best_viol = 0.0; // Known to be 0
+    //                for (double v : population[best_idx].constraint_violations) best_viol += v;
+
+    //                if (best_viol > 0.0) {
+    //                    // We found our first feasible, replace the infeasible one
+    //                    best_idx = i;
+    //                }
+    //                else if (population[i].objective_value < population[best_idx].objective_value) {
+    //                    // Both feasible, pick better objective
+    //                    best_idx = i;
+    //                }
+    //            }
+    //        }
+    //    }
+
+    //    // 2. If NO feasible solution exists, find the one with lowest violations
+    //    if (best_idx == -1) {
+    //        std::vector<int> rank1;
+    //        rank1.reserve(m_pop_size);
+
+    //        for (int i = 0; i < m_pop_size; ++i) {
+    //            bool dominated = false;
+    //            for (int j = 0; j < m_pop_size; ++j) {
+    //                if (i == j) continue;
+    //                if (dominates(population[j], population[i])) { // j dominates i in constraint space
+    //                    dominated = true;
+    //                    break;
+    //                }
+    //            }
+    //            if (!dominated) rank1.push_back(i);
+    //        }
+
+    //        // Select best objective among rank-1 infeasible solutions
+    //        best_idx = rank1[0];
+    //        for (int idx : rank1) {
+    //            if (population[idx].objective_value < population[best_idx].objective_value) {
+    //                best_idx = idx;
+    //            }
+    //        }
+
+    //        // Optional: tie-breaker if objectives equal (rare):
+    //        // choose lower sum of violations among equal objective
+    //    }
+
+    //    return population[best_idx];
+    //}
+
     Individual get_best_solution() {
-        constexpr double FEAS_EPS = 1e-12;  // adjust if you later adopt explicit tolerances
+        constexpr double FEAS_EPS = 1e-12;
+
+        if (population.empty() || m_pop_size <= 0) {
+            throw std::runtime_error("get_best_solution(): empty population");
+        }
+
+        auto violation_sum = [](const Individual& ind) {
+            double s = 0.0;
+            for (double v : ind.constraint_violations) s += v;
+            return s;
+        };
+
+        // 1) Best feasible (violation sum ~ 0), then lowest objective
         int best_idx = -1;
-
-        // 1. Try to find the best FEASIBLE solution
-        // (Constraint Violation Sum == 0) and lowest Objective Value
         for (int i = 0; i < m_pop_size; ++i) {
-            double total_violation = 0.0;
-            for (double v : population[i].constraint_violations) total_violation += v;
-
-            if (total_violation <= FEAS_EPS) {
-                if (best_idx == -1) {
+            const double v = violation_sum(population[i]);
+            if (v <= FEAS_EPS) {
+                if (best_idx == -1 ||
+                    population[i].objective_value < population[best_idx].objective_value) {
                     best_idx = i;
-                }
-                else {
-                    // Check if current feasible is better than best feasible found so far
-                    double best_viol = 0.0; // Known to be 0
-                    for (double v : population[best_idx].constraint_violations) best_viol += v;
-
-                    if (best_viol > 0.0) {
-                        // We found our first feasible, replace the infeasible one
-                        best_idx = i;
-                    }
-                    else if (population[i].objective_value < population[best_idx].objective_value) {
-                        // Both feasible, pick better objective
-                        best_idx = i;
-                    }
                 }
             }
         }
+        if (best_idx != -1) return population[best_idx];
 
-        // 2. If NO feasible solution exists, find the one with lowest violations
-        if (best_idx == -1) {
-            std::vector<int> rank1;
-            rank1.reserve(m_pop_size);
+        // 2) No feasible: pick best among rank-1 in constraint space (as per paper’s constraint-Pareto concept),
+        // then lowest objective, tie-break by lower violation sum.
+        std::vector<int> rank1;
+        rank1.reserve(m_pop_size);
 
-            for (int i = 0; i < m_pop_size; ++i) {
-                bool dominated = false;
-                for (int j = 0; j < m_pop_size; ++j) {
-                    if (i == j) continue;
-                    if (dominates(population[j], population[i])) { // j dominates i in constraint space
-                        dominated = true;
-                        break;
-                    }
+        for (int i = 0; i < m_pop_size; ++i) {
+            bool dominated = false;
+            for (int j = 0; j < m_pop_size; ++j) {
+                if (i == j) continue;
+                if (dominates(population[j], population[i])) { // constraint dominance
+                    dominated = true;
+                    break;
                 }
-                if (!dominated) rank1.push_back(i);
             }
+            if (!dominated) rank1.push_back(i);
+        }
 
-            // Select best objective among rank-1 infeasible solutions
-            best_idx = rank1[0];
-            for (int idx : rank1) {
-                if (population[idx].objective_value < population[best_idx].objective_value) {
+        if (rank1.empty()) {
+            // Extremely defensive fallback: choose minimum violation sum, then objective
+            best_idx = 0;
+            for (int i = 1; i < m_pop_size; ++i) {
+                const double vi = violation_sum(population[i]);
+                const double vb = violation_sum(population[best_idx]);
+                if (vi < vb || (vi == vb && population[i].objective_value < population[best_idx].objective_value)) {
+                    best_idx = i;
+                }
+            }
+            return population[best_idx];
+        }
+
+        best_idx = rank1[0];
+        for (int idx : rank1) {
+            if (population[idx].objective_value < population[best_idx].objective_value) {
+                best_idx = idx;
+            }
+            else if (population[idx].objective_value == population[best_idx].objective_value) {
+                if (violation_sum(population[idx]) < violation_sum(population[best_idx])) {
                     best_idx = idx;
                 }
             }
-
-            // Optional: tie-breaker if objectives equal (rare):
-            // choose lower sum of violations among equal objective
         }
 
         return population[best_idx];
     }
+
 };
