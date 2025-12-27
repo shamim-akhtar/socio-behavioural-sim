@@ -18,7 +18,7 @@ struct TwoVariableDesign {
 
     // Functor for the Objective Function f(x)
     // Minimize f(x) = (x1 - 10)^3 + (x2 - 20)^3 [cite: 195]
-    double objective(const Individual& ind) const {
+    double get_objective(const Individual& ind) const {
         evaluations++; // Count this evaluation
         double x1 = ind.variables[0];
         double x2 = ind.variables[1];
@@ -28,7 +28,7 @@ struct TwoVariableDesign {
     // Functor for Constraints
     // Returns a vector of VIOLATION values (0.0 if satisfied, positive magnitude if violated)
     // Based on Eq (7) logic [cite: 145-148]
-    std::vector<double> constraints(const Individual& ind) const {
+    std::vector<double> get_constraints_violation(const Individual& ind) const {
         //double x1 = ind.variables[0];
         //double x2 = ind.variables[1];
         std::vector<double> violations;
@@ -39,7 +39,7 @@ struct TwoVariableDesign {
         //// Constraint 2: -(x1 - 6)^2 - (x2 - 5)^2 + 82.81 >= 0 [cite: 198]
         //double g2 = -std::pow(x1 - 6.0, 2) - std::pow(x2 - 5.0, 2) + 82.81;
 
-        const auto raw = get_raw_values(ind);
+        const auto raw = get_constraints_raw_values(ind);
 
         // Logic: If g(x) >= 0, violation is 0. Else, violation is |g(x)|
         for (double g : raw) {
@@ -50,7 +50,7 @@ struct TwoVariableDesign {
     }
 
     // NEW: Helper to get raw g(x) values for reporting
-    std::vector<double> get_raw_values(const Individual& ind) const {
+    std::vector<double> get_constraints_raw_values(const Individual& ind) const {
         if (ind.variables.size() < 2) {
             throw std::runtime_error("TwoVariableDesign expects 2 variables");
         }

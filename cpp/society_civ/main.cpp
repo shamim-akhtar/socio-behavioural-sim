@@ -50,8 +50,8 @@ int main() {
 
         Civilization myCiv(
             m, n, lower_bounds, upper_bounds,
-            [&](const Individual& ind) { return problem4_1.objective(ind); },
-            [&](const Individual& ind) { return problem4_1.constraints(ind); },
+            [&](const Individual& ind) { return problem4_1.get_objective(ind); },
+            [&](const Individual& ind) { return problem4_1.get_constraints_violation(ind); },
             current_seed
         );
 
@@ -126,7 +126,7 @@ int main() {
         std::cout << "Objective: " << ind.objective_value << "\n";
 
         // Print Raw Constraint Values
-        std::vector<double> raw_g = problem4_1.get_raw_values(ind);
+        std::vector<double> raw_g = problem4_1.get_constraints_raw_values(ind);
         std::cout << "Constraint Values (g(x)): [ ";
         for (double g : raw_g) {
             std::cout << std::fixed << std::setprecision(5) << g << " ";
