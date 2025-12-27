@@ -8,9 +8,18 @@
 // Reference: Section 4.1 of the paper [cite: 192-209]
 struct TwoVariableDesign {
 
+    // Mutable allows modification even in const methods
+    mutable int evaluations = 0;
+
+    // Call this at the start of every run
+    void reset_evaluations() const {
+        evaluations = 0;
+    }
+
     // Functor for the Objective Function f(x)
     // Minimize f(x) = (x1 - 10)^3 + (x2 - 20)^3 [cite: 195]
     double objective(const Individual& ind) const {
+        evaluations++; // Count this evaluation
         double x1 = ind.variables[0];
         double x2 = ind.variables[1];
         return std::pow(x1 - 10.0, 3) + std::pow(x2 - 20.0, 3);
