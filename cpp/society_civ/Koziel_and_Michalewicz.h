@@ -29,28 +29,34 @@ struct TwoVariableDesign {
     // Returns a vector of VIOLATION values (0.0 if satisfied, positive magnitude if violated)
     // Based on Eq (7) logic [cite: 145-148]
     std::vector<double> constraints(const Individual& ind) const {
-        double x1 = ind.variables[0];
-        double x2 = ind.variables[1];
+        //double x1 = ind.variables[0];
+        //double x2 = ind.variables[1];
         std::vector<double> violations;
 
-        // Constraint 1: (x1 - 5)^2 + (x2 - 5)^2 - 100 >= 0 [cite: 197]
-        double g1 = std::pow(x1 - 5.0, 2) + std::pow(x2 - 5.0, 2) - 100.0;
+        //// Constraint 1: (x1 - 5)^2 + (x2 - 5)^2 - 100 >= 0 [cite: 197]
+        //double g1 = std::pow(x1 - 5.0, 2) + std::pow(x2 - 5.0, 2) - 100.0;
 
-        // Constraint 2: -(x1 - 6)^2 - (x2 - 5)^2 + 82.81 >= 0 [cite: 198]
-        double g2 = -std::pow(x1 - 6.0, 2) - std::pow(x2 - 5.0, 2) + 82.81;
+        //// Constraint 2: -(x1 - 6)^2 - (x2 - 5)^2 + 82.81 >= 0 [cite: 198]
+        //double g2 = -std::pow(x1 - 6.0, 2) - std::pow(x2 - 5.0, 2) + 82.81;
+
+        const auto raw = get_raw_values(ind);
 
         // Logic: If g(x) >= 0, violation is 0. Else, violation is |g(x)|
-        violations.push_back((g1 >= 0.0) ? 0.0 : std::abs(g1));
-        violations.push_back((g2 >= 0.0) ? 0.0 : std::abs(g2));
+        for (double g : raw) {
+            violations.push_back((g >= 0.0) ? 0.0 : -g);
+        }
 
         return violations;
     }
 
     // NEW: Helper to get raw g(x) values for reporting
     std::vector<double> get_raw_values(const Individual& ind) const {
+        if (ind.variables.size() < 2) {
+            throw std::runtime_error("TwoVariableDesign expects 2 variables");
+        }
+
         double x1 = ind.variables[0];
         double x2 = ind.variables[1];
-        std::vector<double> raw_values;
 
         // Constraint 1: (x1 - 5)^2 + (x2 - 5)^2 - 100 >= 0
         double g1 = std::pow(x1 - 5.0, 2) + std::pow(x2 - 5.0, 2) - 100.0;
@@ -58,10 +64,6 @@ struct TwoVariableDesign {
         // Constraint 2: -(x1 - 6)^2 - (x2 - 5)^2 + 82.81 >= 0
         double g2 = -std::pow(x1 - 6.0, 2) - std::pow(x2 - 5.0, 2) + 82.81;
 
-        // Return raw g(x) regardless of sign
-        raw_values.push_back(g1);
-        raw_values.push_back(g2);
-
-        return raw_values;
+        return { g1, g2 };
     }
 };
