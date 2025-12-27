@@ -1,0 +1,90 @@
+# =========================
+# Visual Studio 2022 (C++): .gitignore
+# =========================
+
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio working folder
+.vs/
+
+# Build results
+[Bb]in/
+[Oo]bj/
+[Dd]ebug*/
+[Rr]elease*/
+x64/
+x86/
+ARM/
+ARM64/
+
+# MSBuild/VC++ intermediate and output files
+*.tlog
+*.idb
+*.ipdb
+*.iobj
+*.pdb
+*.ilk
+*.pch
+*.obj
+*.res
+*.exp
+*.lib
+*.dll
+*.exe
+*.map
+*.manifest
+
+# CMake (Visual Studio CMake integration)
+CMakeSettings.json.user
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+Testing/
+CTestTestfile.cmake
+out/
+build/
+cmake-build-*/
+
+# Visual Studio CMake/CPack/ctest output directories often used
+**/CMakeFiles/
+**/out/**
+
+# IntelliSense / browsing databases
+*.VC.db
+*.VC.VC.opendb
+*.opendb
+*.sdf
+*.opensdf
+ipch/
+
+# Visual Studio profiler / diagnostics
+*.psess
+*.vsp
+*.vspx
+*.sap
+
+# NuGet (if used)
+packages/
+*.nupkg
+.nuget/
+
+# Logs
+*.log
+
+# Crash dumps
+*.dmp
+
+# Windows / OS noise
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.stackdump
+
+# Optional: ignore generated folders for Clang/LLVM tools if you use them
+.cache/
