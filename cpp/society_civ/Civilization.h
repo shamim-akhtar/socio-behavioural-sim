@@ -512,4 +512,52 @@ public:
     }
 
     std::vector<Individual>& get_population() { return population; }
+
+    // --- Helper: Get Best Solution (Post-Simulation) ---
+    Individual get_best_solution() {
+        int best_idx = -1;
+
+        // 1. Try to find the best FEASIBLE solution
+        // (Constraint Violation Sum == 0) and lowest Objective Value
+        for (int i = 0; i < m_pop_size; ++i) {
+            double total_violation = 0.0;
+            for (double v : population[i].constraint_violations) total_violation += v;
+
+            if (total_violation == 0.0) {
+                if (best_idx == -1) {
+                    best_idx = i;
+                }
+                else {
+                    // Check if current feasible is better than best feasible found so far
+                    double best_viol = 0.0; // Known to be 0
+                    for (double v : population[best_idx].constraint_violations) best_viol += v;
+
+                    if (best_viol > 0.0) {
+                        // We found our first feasible, replace the infeasible one
+                        best_idx = i;
+                    }
+                    else if (population[i].objective_value < population[best_idx].objective_value) {
+                        // Both feasible, pick better objective
+                        best_idx = i;
+                    }
+                }
+            }
+        }
+
+        // 2. If NO feasible solution exists, find the one with lowest violations
+        if (best_idx == -1) {
+            double min_violation = std::numeric_limits<double>::max();
+            for (int i = 0; i < m_pop_size; ++i) {
+                double total_violation = 0.0;
+                for (double v : population[i].constraint_violations) total_violation += v;
+
+                if (total_violation < min_violation) {
+                    min_violation = total_violation;
+                    best_idx = i;
+                }
+            }
+        }
+
+        return population[best_idx];
+    }
 };
