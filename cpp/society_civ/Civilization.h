@@ -44,6 +44,9 @@ private:
     ObjFunc m_objective_fn;
     ConFunc m_constraint_fn;
 
+    size_t expected_constraint_dim = static_cast<size_t>(-1);
+
+
 public:
     // Constructor updated to accept generic functors
     Civilization(int pop_size, int num_vars,
@@ -157,8 +160,16 @@ public:
         for (auto& ind : population) {
             ind.objective_value = m_objective_fn(ind);
             ind.constraint_violations = m_constraint_fn(ind);
+
+            if (expected_constraint_dim == static_cast<size_t>(-1)) {
+                expected_constraint_dim = ind.constraint_violations.size();
+            }
+            else if (ind.constraint_violations.size() != expected_constraint_dim) {
+                throw std::runtime_error("Constraint vector size changed between evaluations");
+            }
         }
     }
+
 
     // Helper: Dominance Check for Constraint Satisfaction
     bool dominates(const Individual& a, const Individual& b) {
