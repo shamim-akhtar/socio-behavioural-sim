@@ -168,7 +168,7 @@ int problem4_2() {
     const int MAX_T = 200;     // 
 
     int m = 100; // Civilization Size 
-    int n = 4;   // Variables: h, l, t, b [cite: 586]
+    int n = 4;   // Variables: h, l, t, b 
 
     const bool USE_RANDOM_SEED = true;
 

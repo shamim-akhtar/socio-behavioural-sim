@@ -6,7 +6,7 @@
 #include "Individual.h"
 
 // 2. The Concrete Implementation for the "Welded Beam Design" Problem
-// Reference: Section 4.2 of the paper [cite: 210-247]
+// Reference: Section 4.2 of the paper
 struct WeldedBeamDesign {
 
     mutable int evaluations = 0;

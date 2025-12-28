@@ -10,13 +10,13 @@ public:
     // x: The design variables (n-dimensional vector) 
     std::vector<double> variables;
 
-    // Stores the violation values for each constraint [cite: 144]
+    // Stores the violation values for each constraint
     std::vector<double> constraint_violations;
 
-    // The objective function value f(x) [cite: 136]
+    // The objective function value f(x)
     double objective_value;
 
-    // The Pareto rank (1, 2, 3...) based on constraint satisfaction [cite: 159]
+    // The Pareto rank (1, 2, 3...) based on constraint satisfaction
     int rank;
 
     // Constructor to set the size of the design variables

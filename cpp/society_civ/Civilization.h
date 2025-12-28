@@ -33,8 +33,8 @@ private:
     std::vector<int> global_society; // Indices of all local leaders collated together
     std::vector<int> super_leaders;  // Indices of the "Best of the Best"
 
-    int m_pop_size;     // m: Size of civilization [cite: 47]
-    int n_variables;    // n: Number of design variables [cite: 47]
+    int m_pop_size;     // m: Size of civilization
+    int n_variables;    // n: Number of design variables
 
     std::vector<double> lower_bounds;
     std::vector<double> upper_bounds;
@@ -64,7 +64,7 @@ public:
         rng.seed(seed);
     }
 
-    // Corresponds to Section 3.1: Initialization [cite: 109]
+    // Corresponds to Section 3.1: Initialization
         void initialize() {
         population.clear();
         population.reserve(m_pop_size);
@@ -197,7 +197,7 @@ public:
     }
 
 
-    // 3.2 Rank Society [cite: 159-160]
+    // 3.2 Rank Society
     void rank_society(const std::vector<int>& members) {
         std::vector<int> current_pool = members;
         int current_rank = 1;
@@ -219,7 +219,7 @@ public:
         }
     }
 
-    // 3.3 Identify Leaders [cite: 161-169]
+    // 3.3 Identify Leaders
     void identify_leaders() {
         evaluate_population();
 
@@ -276,7 +276,7 @@ public:
         return false;
     }
 
-    // Section 3.5: Information Acquisition Operator [cite: 170-178]
+    // Section 3.5: Information Acquisition Operator
     // Implements the stochastic movement logic
     double acquire_information(double val_ind, double val_leader, double lb, double ub) {
         std::uniform_real_distribution<double> dist(0.0, 1.0);
@@ -285,37 +285,37 @@ public:
         double min_v = std::min(val_ind, val_leader);
         double max_v = std::max(val_ind, val_leader);
 
-        // Define the 3 regions from Figure 2 [cite: 187]
+        // Define the 3 regions from Figure 2
         if (r < 0.25) {
-            // 25% prob: Move between Lower Bound and min(ind, leader) [cite: 173]
+            // 25% prob: Move between Lower Bound and min(ind, leader)
             if (min_v <= lb) return lb;
             std::uniform_real_distribution<double> range(lb, min_v);
             return range(rng);
         }
         else if (r < 0.75) {
-            // 50% prob: Move between Individual and Leader [cite: 172]
+            // 50% prob: Move between Individual and Leader
             if (max_v <= min_v) return min_v;
             std::uniform_real_distribution<double> range(min_v, max_v);
             return range(rng);
         }
         else {
-            // 25% prob: Move between max(ind, leader) and Upper Bound [cite: 174]
+            // 25% prob: Move between max(ind, leader) and Upper Bound
             if (ub <= max_v) return ub;
             std::uniform_real_distribution<double> range(max_v, ub);
             return range(rng);
         }
     }
 
-    // Step 4: Intra-Society Interaction [cite: 97-98]
+    // Step 4: Intra-Society Interaction
     void move_society_members() {
         for (int i = 0; i < m_pop_size; ++i) {
-            // Leaders do not move in this step [cite: 97]
+            // Leaders do not move in this step
             if (is_leader(i)) continue;
 
             int society_id = assignments[i];
             if (society_id == -1 || society_leaders[society_id].empty()) continue;
 
-            // Find nearest leader in the same society [cite: 54]
+            // Find nearest leader in the same society
             int nearest_leader = -1;
             double min_dist = std::numeric_limits<double>::max();
 
@@ -343,7 +343,7 @@ public:
     }
     //Step 5 & 6 Helpers ---
 
-    // Step 5: Collate leaders to form global society [cite: 56, 100]
+    // Step 5: Collate leaders to form global society
     void form_global_society() {
         global_society.clear();
         for (const auto& leaders : society_leaders) {
@@ -352,7 +352,7 @@ public:
         //std::cout << "--> Step 5: Global Society formed with " << global_society.size() << " members.\n";
     }
 
-    // Step 6: Identify Super Leaders [cite: 57-59, 102]
+    // Step 6: Identify Super Leaders
     // "The global leaders' society... behaves like any other society."
     void identify_super_leaders() {
         if (global_society.empty()) return;
@@ -447,8 +447,8 @@ public:
         return false;
     }
 
-    // Step 7: Inter-Society Interaction (Global Leaders move towards Super Leaders) [cite: 104]
-    // Step 8: Super leaders do not change their position [cite: 105]
+    // Step 7: Inter-Society Interaction (Global Leaders move towards Super Leaders) 
+    // Step 8: Super leaders do not change their position
     void move_global_leaders() {
         if (super_leaders.empty()) return;
 
