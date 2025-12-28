@@ -149,7 +149,7 @@ public:
                 if (d_new < d_curr) assignments[i] = new_hub_id;
             }
         }
-        std::cout << "--> Clustering complete. Societies formed: " << hubs.size() << "\n";
+        //std::cout << "--> Clustering complete. Societies formed: " << hubs.size() << "\n";
         organize_societies();
     }
 
@@ -259,7 +259,7 @@ public:
                     society_leaders[s].push_back(rank1[0]);
             }
         }
-        std::cout << "--> Leaders Identified via Generic Functors.\n";
+        //std::cout << "--> Leaders Identified via Generic Functors.\n";
     }
 
     // Step 4 Helpers & Logic ---
@@ -339,7 +339,7 @@ public:
                 }
             }
         }
-        std::cout << "--> Step 4: Society members moved towards leaders.\n";
+        //std::cout << "--> Step 4: Society members moved towards leaders.\n";
     }
     //Step 5 & 6 Helpers ---
 
@@ -349,7 +349,7 @@ public:
         for (const auto& leaders : society_leaders) {
             global_society.insert(global_society.end(), leaders.begin(), leaders.end());
         }
-        std::cout << "--> Step 5: Global Society formed with " << global_society.size() << " members.\n";
+        //std::cout << "--> Step 5: Global Society formed with " << global_society.size() << " members.\n";
     }
 
     // Step 6: Identify Super Leaders [cite: 57-59, 102]
@@ -391,7 +391,7 @@ public:
                 super_leaders.push_back(rank1[0]);
         }
 
-        std::cout << "--> Step 6: Identified " << super_leaders.size() << " Super Leaders.\n";
+        //std::cout << "--> Step 6: Identified " << super_leaders.size() << " Super Leaders.\n";
     }
 
     // --- AMENDED: Visualization to show 'S' for Super Leaders ---
@@ -480,7 +480,7 @@ public:
                 }
             }
         }
-        std::cout << "--> Step 7: Global Leaders moved towards Super Leaders.\n";
+        //std::cout << "--> Step 7: Global Leaders moved towards Super Leaders.\n";
     }
 
     // --- AMENDED: Export to CSV to include Super Leader flag ---
@@ -522,9 +522,9 @@ public:
             if (assignments[i] >= 0 && assignments[i] < (int)hubs.size())
                 clusters[assignments[i]].push_back(i);
         }
-        for (size_t i = 0; i < clusters.size(); ++i) {
+        /*for (size_t i = 0; i < clusters.size(); ++i) {
             std::cout << "Society " << i << " has " << clusters[i].size() << " individuals." << std::endl;
-        }
+        }*/
     }
 
     void print_population_sample(int count = 5) {
