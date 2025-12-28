@@ -5,6 +5,8 @@ This repository contains the C++ implementation of the **Socio-Behavioural Simul
 This code is based strictly on the research paper:
 > **Akhtar, S., Tai, K., & Ray, T. (2002).** *A Socio-Behavioural Simulation Model for Engineering Design Optimization*. Engineering Optimization, 34(4), 341-354.
 
+**View the paper on Research Gate [A Socio--Behavioural Simulation Model For Engineering Design Optimization](https://www.researchgate.net/publication/216300037_A_Socio--Behavioural_Simulation_Model_For_Engineering_Design_Optimization).**
+
 ---
 
 ## 1. Introduction
