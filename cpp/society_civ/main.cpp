@@ -13,7 +13,7 @@ int problem4_1() {
     const int NUM_RUNS = 10;
     const int MAX_T = 200;
 
-    int m = 100; // Civilization Size
+    int m = 200; // Civilization Size
     int n = 2;   // Variables
 
     const bool USE_RANDOM_SEED = false;
@@ -333,7 +333,7 @@ int problem4_2() {
     return 0;
 }
 
-int main() {
-    return problem4_1();
-    return problem4_2();
-}
+//int main() {
+//    problem4_1();
+//    //problem4_2();
+//}

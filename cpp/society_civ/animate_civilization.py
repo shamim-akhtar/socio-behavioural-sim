@@ -5,7 +5,7 @@ import matplotlib.animation as animation
 # ==========================================
 # CONFIGURATION
 # ==========================================
-CSV_FILE = 'simulation_data.csv'
+CSV_FILE = 'problem4_1.csv'
 TARGET_RUN = 1   # Which run do you want to animate? (1-10)
 FRAME_DELAY = 500 # Milliseconds between frames (lower = faster)
 LOWER_BOUND = 0
