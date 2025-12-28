@@ -334,5 +334,6 @@ int problem4_2() {
 }
 
 int main() {
+    return problem4_1();
     return problem4_2();
 }
